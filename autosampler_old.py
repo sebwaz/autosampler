@@ -7,7 +7,6 @@ Created on Tue Apr 25 23:55:00 2017
 
 import wave
 import struct
-import numpy as np
 from math import floor
 
 read_wav   = wave.open('D:/GIT/autosampler/longforms/shirleykwan.wav', 'r')
@@ -25,13 +24,13 @@ params    = (nchannels, sampwidth, framerate, nframes, comptype, compname)
 write1_wav.setparams(params)
 write2_wav.setparams(params)
 
-
-print(nchannels) # 1 for mono, 2 for stereo. MONO CASE NOT ADDRESSED
-print(sampwidth) # number of bytes per sample
-print(framerate) # number of samples per second
-print(nframes)   # number of samples in file
-
 '''
+print(nchannels)
+'''
+print(sampwidth)
+'''
+print(framerate)
+print(nframes)
 print(comptype)
 print(compname)
 '''
@@ -45,33 +44,26 @@ stereo information)
 '''
 
 # the number of samples to pull from the input
-n=framerate*15
-
-# the number of unique values a sample can take on, based on sampwidth
-shortrange=2**(8*sampwidth)
+n=framerate*60
 
 # note: WAV file byte order is little endian
 read_data = read_wav.readframes(n)
 
 # parse the read data into lists of shorts
-# TODO: change '<H' to '<...' based on sampwidth
-y   = np.repeat(np.arange(n), sampwidth)*(2*sampwidth)
-l_i = (y+np.tile(np.arange(sampwidth), n)).reshape(n, sampwidth)
-r_i = (y+np.tile(np.arange(sampwidth, sampwidth*2), n)).reshape(n, sampwidth)
-l_data = [struct.unpack('<H', read_data[x[0]:x[-1]+1])[0] for x in l_i]
-r_data = [struct.unpack('<H', read_data[x[0]:x[-1]+1])[0] for x in r_i]
+l_data = [struct.unpack('<H', read_data[4*x+0:4*x+2])[0] for x in range(n)]
+r_data = [struct.unpack('<H', read_data[4*x+2:4*x+4])[0] for x in range(n)]
 
 #### NOW ITS IN INTS! CONVERT TO [-1, 1] ### VALUES ASSUME 16BIT
-l_norm = [x/((shortrange/2)-1) if x<=((shortrange/2)-1) else -((shortrange-x)/(shortrange/2)) for x in l_data]
-r_norm = [x/((shortrange/2)-1) if x<=((shortrange/2)-1) else -((shortrange-x)/(shortrange/2)) for x in r_data]
+l_norm = [x/32767 if x<=32767 else -((65536-x)/32768) for x in l_data]
+r_norm = [x/32767 if x<=32767 else -((65536-x)/32768) for x in r_data]
 
 # check
 print(l_norm[:10])
 print(r_norm[:10])
 
-#### convert from [-1, 1] back to short ### VALUES ASSUME 16BIT
-l_short = [int(floor(((x/2)+1)*shortrange)) if x<0 else int(floor((x/2)*(shortrange-1))) for x in l_norm]
-r_short = [int(floor(((x/2)+1)*shortrange)) if x<0 else int(floor((x/2)*(shortrange-1))) for x in r_norm]
+#### convert back to short ### VALUES ASSUME 16BIT
+l_short = [int(floor(((x/2)+1)*65536)) if x<0 else int(floor((x/2)*65535)) for x in l_norm]
+r_short = [int(floor(((x/2)+1)*65536)) if x<0 else int(floor((x/2)*65535)) for x in r_norm]
 
 # check
 print(l_short[:10])
