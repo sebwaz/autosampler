@@ -10,17 +10,17 @@ import struct
 import numpy as np
 from math import floor
 
-read_wav   = wave.open('D:/GIT/autosampler/longforms/shirleykwan.wav', 'r')
+wfile   = wave.open('D:/GIT/autosampler/longforms/once_we_were_fish.wav', 'r')
 write1_wav = wave.open('D:/GIT/autosampler/outputs/output_ONE.wav', 'w')
 write2_wav = wave.open('D:/GIT/autosampler/outputs/output_TWO.wav', 'w')
 
 # get the parameters of the input, use as parameters for the output
-nchannels = read_wav.getparams().nchannels
-sampwidth = read_wav.getparams().sampwidth
-framerate = read_wav.getparams().framerate
-nframes   = read_wav.getparams().nframes
-comptype  = read_wav.getparams().comptype
-compname  = read_wav.getparams().compname
+nchannels = wfile.getparams().nchannels
+sampwidth = wfile.getparams().sampwidth
+framerate = wfile.getparams().framerate
+nframes   = wfile.getparams().nframes
+comptype  = wfile.getparams().comptype
+compname  = wfile.getparams().compname
 params    = (nchannels, sampwidth, framerate, nframes, comptype, compname)
 write1_wav.setparams(params)
 write2_wav.setparams(params)
@@ -29,12 +29,10 @@ write2_wav.setparams(params)
 print(nchannels) # 1 for mono, 2 for stereo. MONO CASE NOT ADDRESSED
 print(sampwidth) # number of bytes per sample
 print(framerate) # number of samples per second
-print(nframes)   # number of samples in file
-
-'''
+print(nframes)   # number of samples in file (1 sample carries as many values as channels)
 print(comptype)
 print(compname)
-'''
+
 
 '''
 CURRENT IDEA:
@@ -45,13 +43,13 @@ stereo information)
 '''
 
 # the number of samples to pull from the input
-n=framerate*15
+n=nframes
 
 # the number of unique values a sample can take on, based on sampwidth
-shortrange=2**(8*sampwidth)
+typerange=2**(8*sampwidth)
 
 # note: WAV file byte order is little endian
-read_data = read_wav.readframes(n)
+read_data = wfile.readframes(n)
 
 # parse the read data into lists of shorts
 # TODO: change '<H' to '<...' based on sampwidth
@@ -62,16 +60,16 @@ l_data = [struct.unpack('<H', read_data[x[0]:x[-1]+1])[0] for x in l_i]
 r_data = [struct.unpack('<H', read_data[x[0]:x[-1]+1])[0] for x in r_i]
 
 #### NOW ITS IN INTS! CONVERT TO [-1, 1] ### VALUES ASSUME 16BIT
-l_norm = [x/((shortrange/2)-1) if x<=((shortrange/2)-1) else -((shortrange-x)/(shortrange/2)) for x in l_data]
-r_norm = [x/((shortrange/2)-1) if x<=((shortrange/2)-1) else -((shortrange-x)/(shortrange/2)) for x in r_data]
+l_norm = [x/((typerange/2)-1) if x<=((typerange/2)-1) else -((typerange-x)/(typerange/2)) for x in l_data]
+r_norm = [x/((typerange/2)-1) if x<=((typerange/2)-1) else -((typerange-x)/(typerange/2)) for x in r_data]
 
 # check
 print(l_norm[:10])
 print(r_norm[:10])
 
 #### convert from [-1, 1] back to short ### VALUES ASSUME 16BIT
-l_short = [int(floor(((x/2)+1)*shortrange)) if x<0 else int(floor((x/2)*(shortrange-1))) for x in l_norm]
-r_short = [int(floor(((x/2)+1)*shortrange)) if x<0 else int(floor((x/2)*(shortrange-1))) for x in r_norm]
+l_short = [int(floor(((x/2)+1)*typerange)) if x<0 else int(floor((x/2)*(typerange-1))) for x in l_norm]
+r_short = [int(floor(((x/2)+1)*typerange)) if x<0 else int(floor((x/2)*(typerange-1))) for x in r_norm]
 
 # check
 print(l_short[:10])
@@ -90,6 +88,6 @@ print(byte_stream)
 
 
 write1_wav.writeframes(byte_stream)
-read_wav.close()
+wfile.close()
 write1_wav.close()
 write2_wav.close()
